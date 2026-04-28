@@ -43,6 +43,22 @@ LANGUAGES = {
     "维吾尔语 (Uyghur)": "ug",
     "粤语 (Cantonese)": "yue",
 }
+LABELS_BY_CODE = {code: label for label, code in LANGUAGES.items()}
+
+
+def get_language_name(language_code, instruction_language="en"):
+    """Return the model-facing language name instead of an ISO code."""
+    label = LABELS_BY_CODE.get(language_code)
+    if not label:
+        return language_code
+
+    if instruction_language == "zh":
+        return label.split(" (", 1)[0]
+
+    if "(" in label and label.endswith(")"):
+        return label.rsplit("(", 1)[-1][:-1]
+
+    return label
 
 # Model and tokenizer (will be loaded on first use)
 model = None
@@ -73,6 +89,8 @@ def build_prompt(source_text, target_language, source_language="auto",
     # Determine if source is Chinese
     is_chinese_source = source_language == "zh" or source_language == "zh-Hant"
     is_chinese_target = target_language == "zh" or target_language == "zh-Hant"
+    target_name_zh = get_language_name(target_language, "zh")
+    target_name_en = get_language_name(target_language, "en")
     
     if translation_mode == "terminology" and terminology:
         # Terminology intervention
@@ -81,13 +99,13 @@ def build_prompt(source_text, target_language, source_language="auto",
             prompt = f"""参考下面的翻译：
 {source_term} 翻译成 {target_term}
 
-将以下文本翻译为{target_language}，注意只需要输出翻译后的结果，不要额外解释：
+将以下文本翻译为{target_name_zh}，注意只需要输出翻译后的结果，不要额外解释：
 {source_text}"""
         else:
             prompt = f"""参考下面的翻译：
 {source_term} 翻译成 {target_term}
 
-Translate the following segment into {target_language}, without additional explanation.
+Translate the following segment into {target_name_en}, without additional explanation.
 
 {source_text}"""
     
@@ -95,13 +113,13 @@ Translate the following segment into {target_language}, without additional expla
         # Contextual translation
         if is_chinese_target:
             prompt = f"""{context}
-参考上面的信息，把下面的文本翻译成{target_language}，注意不需要翻译上文，也不要额外解释：
+参考上面的信息，把下面的文本翻译成{target_name_zh}，注意不需要翻译上文，也不要额外解释：
 {source_text}
 
 """
         else:
             prompt = f"""{context}
-Based on the above information, translate the following text into {target_language}, without translating the context above or additional explanation:
+Based on the above information, translate the following text into {target_name_en}, without translating the context above or additional explanation:
 
 {source_text}
 
@@ -112,11 +130,11 @@ Based on the above information, translate the following text into {target_langua
         if target_language not in ["zh", "zh-Hant"]:
             # If target is not Chinese, use basic translation
             if is_chinese_source:
-                prompt = f"""将以下文本翻译为{target_language}，注意只需要输出翻译后的结果，不要额外解释：
+                prompt = f"""将以下文本翻译为{target_name_zh}，注意只需要输出翻译后的结果，不要额外解释：
 
 {source_text}"""
             else:
-                prompt = f"""Translate the following segment into {target_language}, without additional explanation.
+                prompt = f"""Translate the following segment into {target_name_en}, without additional explanation.
 
 {source_text}"""
         else:
@@ -127,11 +145,11 @@ Based on the above information, translate the following text into {target_langua
     else:
         # Basic translation
         if is_chinese_source or is_chinese_target:
-            prompt = f"""将以下文本翻译为{target_language}，注意只需要输出翻译后的结果，不要额外解释：
+            prompt = f"""将以下文本翻译为{target_name_zh}，注意只需要输出翻译后的结果，不要额外解释：
 
 {source_text}"""
         else:
-            prompt = f"""Translate the following segment into {target_language}, without additional explanation.
+            prompt = f"""Translate the following segment into {target_name_en}, without additional explanation.
 
 {source_text}"""
     
