@@ -146,6 +146,8 @@ Recommended parameters for 1.8B and 7B (pre-set in the interface):
 - Python 3.10+
 - PyTorch 2.0+
 - CUDA-capable GPU (recommended)
+  - **Hy-MT2-1.8B**: ~4 GB VRAM (BF16)
+  - **Hy-MT2-7B**: ~16 GB VRAM (BF16)
 - Transformers 5.6.0+
 - Gradio 5.0+
 

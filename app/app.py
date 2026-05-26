@@ -57,6 +57,17 @@ TRANSLATION_MODES = [
 
 FORMAT_TYPES = ["JSON", "YAML", "XML", "HTML", "Markdown", "CSV"]
 
+MODELS = {
+    "tencent/Hy-MT2-1.8B": {
+        "label": "Hy-MT2-1.8B (~4 GB VRAM)",
+        "vram": "~4 GB VRAM in BF16",
+    },
+    "tencent/Hy-MT2-7B": {
+        "label": "Hy-MT2-7B (~16 GB VRAM)",
+        "vram": "~16 GB VRAM in BF16",
+    },
+}
+
 # Model and tokenizer (loaded on first use)
 model = None
 tokenizer = None
@@ -126,21 +137,41 @@ def format_preferences(preferences):
     return formatted
 
 
+def unload_model():
+    """Release the loaded model to free GPU memory before switching sizes."""
+    global model, tokenizer, model_name
+    if model is None:
+        return
+    del model
+    del tokenizer
+    model = None
+    tokenizer = None
+    model_name = None
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    print("Previous model unloaded.")
+
+
 def load_model(model_path="tencent/Hy-MT2-1.8B"):
     """Load the model and tokenizer."""
     global model, tokenizer, model_name
-    if model is None or model_name != model_path:
-        print(f"Loading model: {model_path}")
-        tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-        model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
-            device_map="auto",
-            trust_remote_code=True,
-        )
-        model.eval()
-        model_name = model_path
-        print("Model loaded successfully!")
+    if model is not None and model_name == model_path:
+        return model, tokenizer
+
+    if model is not None and model_name != model_path:
+        unload_model()
+
+    print(f"Loading model: {model_path}")
+    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+        device_map="auto",
+        trust_remote_code=True,
+    )
+    model.eval()
+    model_name = model_path
+    print("Model loaded successfully!")
     return model, tokenizer
 
 
@@ -297,6 +328,7 @@ def translate_text(
 
     try:
         model, tokenizer = load_model(model_choice)
+        model_label = MODELS.get(model_choice, {}).get("label", model_choice)
 
         source_lang_code = LANGUAGES.get(source_language, "en")
         target_lang_code = LANGUAGES.get(target_language, "zh")
@@ -335,7 +367,7 @@ def translate_text(
             skip_special_tokens=True,
         ).strip()
 
-        return translation, "Translation completed successfully!"
+        return translation, f"Translation completed with {model_label}."
 
     except Exception as e:
         import traceback
@@ -352,7 +384,9 @@ def create_interface():
             """
             # Hy-MT2 Translation Interface
 
-            Official prompt templates for [tencent/Hy-MT2-1.8B](https://huggingface.co/tencent/Hy-MT2-1.8B).
+            Official prompt templates for
+            [Hy-MT2-1.8B](https://huggingface.co/tencent/Hy-MT2-1.8B) and
+            [Hy-MT2-7B](https://huggingface.co/tencent/Hy-MT2-7B).
             Supports all seven Hy-MT2 translation task types across 33 languages.
             """
         )
@@ -360,13 +394,10 @@ def create_interface():
         with gr.Row():
             with gr.Column(scale=1):
                 model_choice = gr.Dropdown(
-                    choices=[
-                        "tencent/Hy-MT2-1.8B",
-                        "tencent/Hy-MT2-7B",
-                    ],
+                    choices=list(MODELS.keys()),
                     value="tencent/Hy-MT2-1.8B",
                     label="Model",
-                    info="1.8B is faster; 7B is more accurate",
+                    info="1.8B ~4 GB VRAM | 7B ~16 GB VRAM (BF16). Switching models unloads the previous one.",
                 )
 
                 source_language = gr.Dropdown(
@@ -505,6 +536,7 @@ def create_interface():
             """
             ### Notes
             - Recommended inference params for 1.8B/7B: temperature=0.7, top_p=0.6, top_k=20, repetition_penalty=1.05, max_tokens=4096
+            - Hy-MT2-7B needs roughly 16 GB GPU memory in BF16; use 1.8B on smaller GPUs
             - Language names in prompts use Chinese names for Chinese prompts and English names for English prompts
             - Terminology mode accepts `source -> target` pairs, converted to the official reference format automatically
             - Structured data mode preserves keys, tags, and placeholders while translating visible text
