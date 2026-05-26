@@ -2,6 +2,8 @@
 
 **Hy-MT2** — A Gradio web interface for Tencent's Hy-MT2 translation models, packaged for Pinokio.
 
+Repository: [Tencent-HY-MT2-Pinokio](https://github.com/PierrunoYT/Tencent-HY-MT2-Pinokio)
+
 ## Overview
 
 Hy-MT2 is a family of fast-thinking multilingual translation models. This launcher supports:
