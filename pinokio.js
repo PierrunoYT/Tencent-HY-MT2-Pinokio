@@ -1,7 +1,7 @@
 module.exports = {
   version: "1.0.0",
-  title: "HY-MT1.5",
-  description: "🌐 Hunyuan Translation Model Version 1.5 - Supporting mutual translation across 33 languages. Features HY-MT1.5-1.8B (fast) and HY-MT1.5-7B (accurate) models with terminology intervention, contextual translation, and formatted translation support.",
+  title: "Hy-MT2",
+  description: "Hy-MT2 — fast-thinking multilingual translation across 33 languages. Features Hy-MT2-1.8B (fast) and Hy-MT2-7B (accurate) with terminology, style, contextual, and delimiter-aware translation.",
   icon: "icon.jpg",
   menu: async (kernel, info) => {
     let installed = info.exists("env")

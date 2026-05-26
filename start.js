@@ -11,7 +11,7 @@ module.exports = {
           "python app.py"
         ],
         on: [{
-          event: "/http:\/\/[0-9.:]+/",
+          event: "/(http:\\/\\/[0-9.:]+)/",
           done: true
         }]
       }
@@ -19,13 +19,13 @@ module.exports = {
     {
       method: "local.set",
       params: {
-        url: "{{input.event[0]}}"
+        url: "{{input.event[1]}}"
       }
     },
     {
       method: "notify",
       params: {
-        html: "HY-MT1.5 is running! Click 'Open Web UI' to start translating between 33 languages."
+        html: "Hy-MT2 is running! Click 'Open Web UI' to start translating between 33 languages."
       }
     }
   ]

@@ -1,5 +1,5 @@
 """
-Simple script to run the Gradio interface for HY-MT1.5
+Simple script to run the Gradio interface for Hy-MT2
 """
 from app import create_interface
 

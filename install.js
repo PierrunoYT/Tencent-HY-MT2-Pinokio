@@ -24,7 +24,7 @@ module.exports = {
     {
       method: "notify",
       params: {
-        html: "Installation complete! Click 'Start' to launch HY-MT1.5. Models will be downloaded automatically from Hugging Face on first use."
+        html: "Installation complete! Click 'Start' to launch Hy-MT2. Models will be downloaded automatically from Hugging Face on first use."
       }
     }
   ]
