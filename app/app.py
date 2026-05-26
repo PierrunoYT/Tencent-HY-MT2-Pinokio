@@ -57,14 +57,35 @@ TRANSLATION_MODES = [
 
 FORMAT_TYPES = ["JSON", "YAML", "XML", "HTML", "Markdown", "CSV"]
 
+DEFAULT_PARAMS_DENSE = {
+    "temperature": 0.7,
+    "top_p": 0.6,
+    "top_k": 20,
+    "repetition_penalty": 1.05,
+}
+
+DEFAULT_PARAMS_MOE = {
+    "temperature": 0.7,
+    "top_p": 1.0,
+    "top_k": -1,
+    "repetition_penalty": 1.0,
+}
+
 MODELS = {
     "tencent/Hy-MT2-1.8B": {
         "label": "Hy-MT2-1.8B (~4 GB VRAM)",
         "vram": "~4 GB VRAM in BF16",
+        "defaults": DEFAULT_PARAMS_DENSE,
     },
     "tencent/Hy-MT2-7B": {
         "label": "Hy-MT2-7B (~16 GB VRAM)",
         "vram": "~16 GB VRAM in BF16",
+        "defaults": DEFAULT_PARAMS_DENSE,
+    },
+    "tencent/Hy-MT2-30B-A3B": {
+        "label": "Hy-MT2-30B-A3B MoE (~24 GB+ VRAM)",
+        "vram": "~24 GB+ VRAM in BF16 (3B active per token)",
+        "defaults": DEFAULT_PARAMS_MOE,
     },
 }
 
@@ -306,6 +327,23 @@ Please translate the following text into {target_name_en}, taking the provided b
     return prompt
 
 
+def build_generation_kwargs(temperature, top_p, top_k, repetition_penalty):
+    """Build generate() kwargs; top_k <= 0 disables top-k filtering per 30B-A3B guidance."""
+    kwargs = {
+        "max_new_tokens": 4096,
+        "temperature": temperature,
+        "top_p": top_p,
+        "repetition_penalty": repetition_penalty,
+    }
+    if int(top_k) > 0:
+        kwargs["top_k"] = int(top_k)
+    return kwargs
+
+
+def get_model_defaults(model_choice):
+    return MODELS.get(model_choice, {}).get("defaults", DEFAULT_PARAMS_DENSE)
+
+
 def translate_text(
     source_text,
     source_language,
@@ -355,11 +393,12 @@ def translate_text(
         with torch.no_grad():
             outputs = model.generate(
                 **inputs,
-                max_new_tokens=4096,
-                temperature=temperature,
-                top_p=top_p,
-                top_k=int(top_k),
-                repetition_penalty=repetition_penalty,
+                **build_generation_kwargs(
+                    temperature,
+                    top_p,
+                    top_k,
+                    repetition_penalty,
+                ),
             )
 
         translation = tokenizer.decode(
@@ -385,8 +424,9 @@ def create_interface():
             # Hy-MT2 Translation Interface
 
             Official prompt templates for
-            [Hy-MT2-1.8B](https://huggingface.co/tencent/Hy-MT2-1.8B) and
-            [Hy-MT2-7B](https://huggingface.co/tencent/Hy-MT2-7B).
+            [Hy-MT2-1.8B](https://huggingface.co/tencent/Hy-MT2-1.8B),
+            [Hy-MT2-7B](https://huggingface.co/tencent/Hy-MT2-7B), and
+            [Hy-MT2-30B-A3B](https://huggingface.co/tencent/Hy-MT2-30B-A3B).
             Supports all seven Hy-MT2 translation task types across 33 languages.
             """
         )
@@ -397,7 +437,7 @@ def create_interface():
                     choices=list(MODELS.keys()),
                     value="tencent/Hy-MT2-1.8B",
                     label="Model",
-                    info="1.8B ~4 GB VRAM | 7B ~16 GB VRAM (BF16). Switching models unloads the previous one.",
+                    info="1.8B ~4 GB | 7B ~16 GB | 30B-A3B MoE ~24 GB+ VRAM. Switching models unloads the previous one.",
                 )
 
                 source_language = gr.Dropdown(
@@ -454,10 +494,26 @@ def create_interface():
                 )
 
                 gr.Markdown("### Generation Parameters")
-                temperature = gr.Slider(0.1, 2.0, value=0.7, step=0.1, label="Temperature")
-                top_p = gr.Slider(0.1, 1.0, value=0.6, step=0.05, label="Top-p")
-                top_k = gr.Slider(1, 100, value=20, step=1, label="Top-k")
-                repetition_penalty = gr.Slider(1.0, 2.0, value=1.05, step=0.05, label="Repetition Penalty")
+                temperature = gr.Slider(
+                    0.1, 2.0, value=DEFAULT_PARAMS_DENSE["temperature"], step=0.1, label="Temperature"
+                )
+                top_p = gr.Slider(
+                    0.1, 1.0, value=DEFAULT_PARAMS_DENSE["top_p"], step=0.05, label="Top-p"
+                )
+                top_k = gr.Slider(
+                    -1,
+                    100,
+                    value=DEFAULT_PARAMS_DENSE["top_k"],
+                    step=1,
+                    label="Top-k (-1 = disabled)",
+                )
+                repetition_penalty = gr.Slider(
+                    1.0,
+                    2.0,
+                    value=DEFAULT_PARAMS_DENSE["repetition_penalty"],
+                    step=0.05,
+                    label="Repetition Penalty",
+                )
 
             with gr.Column(scale=2):
                 source_text = gr.Textbox(
@@ -499,6 +555,14 @@ def create_interface():
                 context_input: gr.update(visible=(mode == "contextual")),
             }
 
+        def update_model_defaults(model):
+            defaults = get_model_defaults(model)
+            return (
+                gr.update(value=defaults["top_p"]),
+                gr.update(value=defaults["top_k"]),
+                gr.update(value=defaults["repetition_penalty"]),
+            )
+
         translation_mode.change(
             update_mode_visibility,
             inputs=[translation_mode],
@@ -509,6 +573,12 @@ def create_interface():
                 format_type_input,
                 context_input,
             ],
+        )
+
+        model_choice.change(
+            update_model_defaults,
+            inputs=[model_choice],
+            outputs=[top_p, top_k, repetition_penalty],
         )
 
         translate_btn.click(
@@ -535,8 +605,10 @@ def create_interface():
         gr.Markdown(
             """
             ### Notes
-            - Recommended inference params for 1.8B/7B: temperature=0.7, top_p=0.6, top_k=20, repetition_penalty=1.05, max_tokens=4096
-            - Hy-MT2-7B needs roughly 16 GB GPU memory in BF16; use 1.8B on smaller GPUs
+            - **1.8B / 7B** recommended params: temperature=0.7, top_p=0.6, top_k=20, repetition_penalty=1.05
+            - **30B-A3B MoE** recommended params: temperature=0.7, top_p=1.0, top_k=-1 (disabled), repetition_penalty=1.0
+            - Params auto-update when you change the model; max_tokens=4096 for all models
+            - Hy-MT2-30B-A3B is a MoE model (30B total, 3B active) and needs substantially more VRAM than 7B
             - Language names in prompts use Chinese names for Chinese prompts and English names for English prompts
             - Terminology mode accepts `source -> target` pairs, converted to the official reference format automatically
             - Structured data mode preserves keys, tags, and placeholders while translating visible text

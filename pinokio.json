@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
   "title": "Hy-MT2",
-  "description": "Hy-MT2 multilingual translation — Gradio UI for 33-language translation with Hy-MT2-1.8B and Hy-MT2-7B.",
+  "description": "Hy-MT2 multilingual translation — Gradio UI for 33-language translation with Hy-MT2-1.8B, Hy-MT2-7B, and Hy-MT2-30B-A3B.",
   "icon": "icon.jpg"
 }

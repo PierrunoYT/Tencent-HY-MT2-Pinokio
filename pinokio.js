@@ -1,7 +1,7 @@
 module.exports = {
   version: "1.0.0",
   title: "Hy-MT2",
-  description: "Hy-MT2 — fast-thinking multilingual translation across 33 languages. Hy-MT2-1.8B and Hy-MT2-7B with all seven official translation task types.",
+  description: "Hy-MT2 — fast-thinking multilingual translation across 33 languages. Hy-MT2-1.8B, Hy-MT2-7B, and Hy-MT2-30B-A3B MoE with all seven official translation task types.",
   icon: "icon.jpg",
   menu: async (kernel, info) => {
     let installed = info.exists("env")

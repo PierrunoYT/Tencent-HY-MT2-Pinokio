@@ -8,6 +8,7 @@ Hy-MT2 is a family of fast-thinking multilingual translation models. This launch
 
 - **Hy-MT2-1.8B**: Lightweight model for edge devices and real-time translation
 - **Hy-MT2-7B**: Higher-accuracy model for complex translation tasks
+- **Hy-MT2-30B-A3B**: MoE flagship model (30B total, 3B active per token) for best quality
 
 Both models support mutual translation across **33 languages** with instruction-following modes such as terminology, style, contextual (background), and delimiter preservation.
 
@@ -22,7 +23,7 @@ Both models support mutual translation across **33 languages** with instruction-
   - **Delimiters**: Preserve delimiter symbols in the output
   - **Structured Data**: Translate user-facing text in JSON/YAML/XML/etc. while preserving structure
   - **Contextual**: Translation with background information
-- **Model Selection**: Choose between 1.8B (faster) or 7B (more accurate)
+- **Model Selection**: Choose between 1.8B (fastest), 7B (balanced), or 30B-A3B MoE (best quality)
 - **Customizable Parameters**: Temperature, top-p, top-k, and repetition penalty
 - **Web Interface**: Gradio UI accessible via browser
 
@@ -128,17 +129,28 @@ python app.py
 
 - **Hy-MT2-1.8B**: [Hugging Face](https://huggingface.co/tencent/Hy-MT2-1.8B)
 - **Hy-MT2-7B**: [Hugging Face](https://huggingface.co/tencent/Hy-MT2-7B)
+- **Hy-MT2-30B-A3B**: [Hugging Face](https://huggingface.co/tencent/Hy-MT2-30B-A3B)
 
 Models are downloaded automatically from Hugging Face on first use.
 
 ## Generation Parameters
 
-Recommended parameters for 1.8B and 7B (pre-set in the interface):
+Recommended parameters (pre-set in the interface; sliders auto-update when you change model):
+
+**Hy-MT2-1.8B / Hy-MT2-7B**
 
 - **Temperature**: 0.7
 - **Top-p**: 0.6
 - **Top-k**: 20
 - **Repetition Penalty**: 1.05
+- **Max tokens**: 4096
+
+**Hy-MT2-30B-A3B (MoE)**
+
+- **Temperature**: 0.7
+- **Top-p**: 1.0
+- **Top-k**: -1 (disabled)
+- **Repetition Penalty**: 1.0
 - **Max tokens**: 4096
 
 ## Requirements
@@ -148,6 +160,7 @@ Recommended parameters for 1.8B and 7B (pre-set in the interface):
 - CUDA-capable GPU (recommended)
   - **Hy-MT2-1.8B**: ~4 GB VRAM (BF16)
   - **Hy-MT2-7B**: ~16 GB VRAM (BF16)
+  - **Hy-MT2-30B-A3B**: ~24 GB+ VRAM (BF16, MoE with 3B active per token)
 - Transformers 5.6.0+
 - Gradio 5.0+
 
@@ -176,7 +189,8 @@ Options:
 
 - First translation may take longer while the model downloads and loads
 - GPU is recommended for faster inference
-- The 1.8B model is faster; the 7B model is more accurate for complex text
+- The 1.8B model is fastest; the 7B model is more accurate for complex text
+- The 30B-A3B MoE model offers the best quality but requires substantially more GPU memory
 - Prompt templates follow the [official Hy-MT2 documentation](https://huggingface.co/tencent/Hy-MT2-1.8B)
 
 ## License
