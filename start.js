@@ -8,7 +8,7 @@ module.exports = {
         env: { },
         path: "app",
         message: [
-          "python app.py"
+          "python app.py --server-port {{port}}"
         ],
         on: [{
           event: "/(http:\\/\\/[0-9.:]+)/",
