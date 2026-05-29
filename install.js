@@ -16,8 +16,7 @@ module.exports = {
         uri: "torch.js",
         params: {
           venv: "env",
-          path: "app",
-          xformers: false
+          path: "app"
         }
       }
     },
