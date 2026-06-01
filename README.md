@@ -187,6 +187,104 @@ Options:
 - **Reset**: Removes the virtual environment
 - **Save Disk Space**: Deduplicates redundant library files
 
+## API
+
+The Gradio web interface exposes a standard REST API on the same port (default `http://127.0.0.1:7860`).
+
+### Translate — `POST /run/predict`
+
+**Curl**
+
+```bash
+curl -X POST http://127.0.0.1:7860/run/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fn_index": 2,
+    "data": [
+      "Hello, how are you?",
+      "英语 (English)",
+      "中文 (Chinese)",
+      "tencent/Hy-MT2-1.8B",
+      "basic",
+      "",
+      "",
+      "",
+      "",
+      "JSON",
+      0.7,
+      0.6,
+      20,
+      1.05
+    ]
+  }'
+```
+
+**Python**
+
+```python
+import requests
+
+response = requests.post(
+    "http://127.0.0.1:7860/run/predict",
+    json={
+        "fn_index": 2,
+        "data": [
+            "Hello, how are you?",   # source_text
+            "英语 (English)",          # source_language
+            "中文 (Chinese)",          # target_language
+            "tencent/Hy-MT2-1.8B",   # model_choice
+            "basic",                  # translation_mode
+            "",                       # terminology
+            "",                       # context
+            "",                       # target_style
+            "",                       # preferences
+            "JSON",                   # format_type
+            0.7,                      # temperature
+            0.6,                      # top_p
+            20,                       # top_k
+            1.05,                     # repetition_penalty
+        ],
+    },
+)
+translation, status = response.json()["data"]
+print(translation)
+```
+
+**JavaScript**
+
+```javascript
+const response = await fetch("http://127.0.0.1:7860/run/predict", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    fn_index: 2,
+    data: [
+      "Hello, how are you?",  // source_text
+      "英语 (English)",         // source_language
+      "中文 (Chinese)",         // target_language
+      "tencent/Hy-MT2-1.8B",  // model_choice
+      "basic",                 // translation_mode
+      "",                      // terminology
+      "",                      // context
+      "",                      // target_style
+      "",                      // preferences
+      "JSON",                  // format_type
+      0.7,                     // temperature
+      0.6,                     // top_p
+      20,                      // top_k
+      1.05,                    // repetition_penalty
+    ],
+  }),
+});
+const { data } = await response.json();
+const [translation, status] = data;
+console.log(translation);
+```
+
+The response `data` array contains `[translation_text, status_message]`.
+
+For the full interactive API schema, visit `http://127.0.0.1:7860/?view=api` while the app is running.
+
 ## Notes
 
 - First translation may take longer while the model downloads and loads
