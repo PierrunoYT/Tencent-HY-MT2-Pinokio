@@ -388,6 +388,7 @@ def translate_text(
             messages,
             add_generation_prompt=True,
             return_tensors="pt",
+            return_dict=True,
         ).to(model.device)
 
         with torch.no_grad():
