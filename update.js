@@ -3,15 +3,13 @@ module.exports = {
     {
       method: "shell.run",
       params: {
-        message: "git pull"
+        message: "git pull --ff-only"
       }
     },
     {
-      method: "shell.run",
+      method: "script.start",
       params: {
-        venv: "env",
-        path: "app",
-        message: "uv pip install -r requirements.txt"
+        uri: "install.js"
       }
     }
   ]
