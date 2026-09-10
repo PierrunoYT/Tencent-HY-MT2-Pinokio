@@ -12,11 +12,11 @@ Hy-MT2 is a family of fast-thinking multilingual translation models. This launch
 - **Hy-MT2-7B**: Higher-accuracy model for complex translation tasks
 - **Hy-MT2-30B-A3B**: MoE flagship model (30B total, 3B active per token) for best quality
 
-Both models support mutual translation across **33 languages** with instruction-following modes such as terminology, style, contextual (background), and delimiter preservation.
+All three models support multilingual translation; the interface offers **38 language and variant choices** with instruction-following modes such as terminology, style, contextual (background), and delimiter preservation.
 
 ## Features
 
-- **33 Languages**: Chinese, English, French, Spanish, Japanese, Korean, and 27 more
+- **38 language and variant choices**: including Traditional Chinese and Cantonese
 - **Translation Modes** (all seven official Hy-MT2 task types):
   - **Basic**: Default translation
   - **Terminology**: Translation with custom terminology guide
@@ -45,24 +45,26 @@ Both models support mutual translation across **33 languages** with instruction-
 
 ```bash
 cd app
-uv pip install -r requirements.txt
+uv venv env
+uv pip install --python env/Scripts/python.exe torch==2.7.0 -r requirements.txt
 ```
 
-3. **Run the interface**:
+The command above is for Windows. On Linux/macOS, use `env/bin/python` instead of `env/Scripts/python.exe`. For GPU support, install the appropriate PyTorch build for your hardware first, as shown in [PyTorch installation instructions](https://pytorch.org/get-started/locally/). The Pinokio installer selects its backend automatically.
+
+3. **Run the interface** from the same `app` folder:
 
 ```bash
-cd app
-python app.py
+env/Scripts/python.exe app.py
 ```
 
-4. **Access the interface** at `http://127.0.0.1:7860`
+On Linux/macOS, run `env/bin/python app.py`. Open the local URL printed in the terminal (the first available port starting at 7860).
 
 ## Usage
 
 ### Basic Translation
 
 1. Select **source language** and **target language**
-2. Choose a **model** (1.8B or 7B)
+2. Choose a **model** (1.8B, 7B, or 30B-A3B)
 3. Enter text in **Source Text**
 4. Click **Translate**
 
@@ -158,13 +160,14 @@ Recommended parameters (pre-set in the interface; sliders auto-update when you c
 ## Requirements
 
 - Python 3.10+
-- PyTorch 2.0+
+- PyTorch 2.7.0 (installed by the launcher)
 - CUDA-capable GPU (recommended)
   - **Hy-MT2-1.8B**: ~4 GB VRAM (BF16)
   - **Hy-MT2-7B**: ~16 GB VRAM (BF16)
-  - **Hy-MT2-30B-A3B**: ~24 GB+ VRAM (BF16, MoE with 3B active per token)
+  - **Hy-MT2-30B-A3B**: ~60 GB for BF16 weights alone, plus runtime memory; fewer active parameters do not reduce stored weights. CPU offload needs sufficient system RAM
 - Transformers 5.6.0+
-- Gradio 5.0+
+- Gradio 5.50.0
+- Windows AMD uses CPU inference; DirectML is not integrated. Intel macOS is unsupported by the required PyTorch version.
 
 ## Command Line Options
 
@@ -177,114 +180,78 @@ Options:
 
 - `--share`: Create a public Gradio link
 - `--server-name`: Server hostname (default: 127.0.0.1)
-- `--server-port`: Server port (default: 7860)
+- `--server-port`: Server port (default: first available starting at 7860)
 
 ## Pinokio Commands
 
 - **Install**: Sets up the Python environment and installs dependencies
 - **Start**: Launches the Gradio web interface
-- **Update**: Pulls the latest launcher changes
+- **Update**: Pulls the latest launcher changes with a fast-forward merge and reruns dependency installation
 - **Reset**: Removes the virtual environment
 - **Save Disk Space**: Deduplicates redundant library files
 
 ## API
 
-The Gradio web interface exposes a standard REST API on the same port (default `http://127.0.0.1:7860`).
+Use the named `/translate` endpoint on the URL printed at startup. The following examples assume port 7860. Inputs use the exact language labels shown in the UI, in the order below; output is `[translation_text, status_message]`.
 
-### Translate — `POST /run/predict`
-
-**Curl**
-
-```bash
-curl -X POST http://127.0.0.1:7860/run/predict \
-  -H "Content-Type: application/json" \
-  -d '{
-    "fn_index": 2,
-    "data": [
-      "Hello, how are you?",
-      "英语 (English)",
-      "中文 (Chinese)",
-      "tencent/Hy-MT2-1.8B",
-      "basic",
-      "",
-      "",
-      "",
-      "",
-      "JSON",
-      0.7,
-      0.6,
-      20,
-      1.05
-    ]
-  }'
-```
-
-**Python**
+**Python** (install `gradio_client`):
 
 ```python
-import requests
+from gradio_client import Client
 
-response = requests.post(
-    "http://127.0.0.1:7860/run/predict",
-    json={
-        "fn_index": 2,
-        "data": [
-            "Hello, how are you?",   # source_text
-            "英语 (English)",          # source_language
-            "中文 (Chinese)",          # target_language
-            "tencent/Hy-MT2-1.8B",   # model_choice
-            "basic",                  # translation_mode
-            "",                       # terminology
-            "",                       # context
-            "",                       # target_style
-            "",                       # preferences
-            "JSON",                   # format_type
-            0.7,                      # temperature
-            0.6,                      # top_p
-            20,                       # top_k
-            1.05,                     # repetition_penalty
-        ],
-    },
+client = Client("http://127.0.0.1:7860")
+translation, status = client.predict(
+    "Hello, how are you?", "英语 (English)", "中文 (Chinese)",
+    "tencent/Hy-MT2-1.8B", "basic",
+    "", "", "", "",  # terminology, context, target_style, preferences
+    "JSON", 0.7, 0.6, 20, 1.05,
+    api_name="/translate",
 )
-translation, status = response.json()["data"]
 print(translation)
 ```
 
-**JavaScript**
+**JavaScript** (install `@gradio/client`):
 
 ```javascript
-const response = await fetch("http://127.0.0.1:7860/run/predict", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    fn_index: 2,
-    data: [
-      "Hello, how are you?",  // source_text
-      "英语 (English)",         // source_language
-      "中文 (Chinese)",         // target_language
-      "tencent/Hy-MT2-1.8B",  // model_choice
-      "basic",                 // translation_mode
-      "",                      // terminology
-      "",                      // context
-      "",                      // target_style
-      "",                      // preferences
-      "JSON",                  // format_type
-      0.7,                     // temperature
-      0.6,                     // top_p
-      20,                      // top_k
-      1.05,                    // repetition_penalty
-    ],
-  }),
-});
-const { data } = await response.json();
-const [translation, status] = data;
+import { Client } from "@gradio/client";
+
+const client = await Client.connect("http://127.0.0.1:7860");
+const result = await client.predict("/translate", [
+  "Hello, how are you?", "英语 (English)", "中文 (Chinese)",
+  "tencent/Hy-MT2-1.8B", "basic",
+  "", "", "", "", // terminology, context, target_style, preferences
+  "JSON", 0.7, 0.6, 20, 1.05,
+]);
+const [translation, status] = result.data;
 console.log(translation);
 ```
 
-The response `data` array contains `[translation_text, status_message]`.
+**Curl** (Bash syntax; use `curl.exe` and adapt quoting in PowerShell):
 
-For the full interactive API schema, visit `http://127.0.0.1:7860/?view=api` while the app is running.
+```bash
+curl -X POST http://127.0.0.1:7860/gradio_api/call/translate \
+  -H "Content-Type: application/json" \
+  -d '{"data":["Hello, how are you?","英语 (English)","中文 (Chinese)","tencent/Hy-MT2-1.8B","basic","","","","","JSON",0.7,0.6,20,1.05]}'
+```
 
+Copy the returned `event_id`, then retrieve the event stream:
+
+```bash
+curl -N http://127.0.0.1:7860/gradio_api/call/translate/EVENT_ID
+```
+
+The `complete` event contains the two output values. See the app's **Use via API** footer link for its live schema and the [Gradio curl guide](https://www.gradio.app/guides/querying-gradio-apps-with-curl) for event handling.
+
+## Development checks
+
+```bash
+python -m unittest discover -s app -p test_app.py -v
+node --test tests/launchers.test.js
+```
+
+These regression tests use mocked model dependencies; they do not download weights or validate GPU translation quality.
+
+With Gradio 5.50.0 installed, run `python tests/smoke_gradio.py` to check interface construction, the API schema, curl routes, and a blank request against real Gradio.
 ## Notes
 
 - First translation may take longer while the model downloads and loads

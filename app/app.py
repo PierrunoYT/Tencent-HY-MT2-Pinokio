@@ -86,8 +86,8 @@ MODELS = {
         "defaults": DEFAULT_PARAMS_DENSE,
     },
     "tencent/Hy-MT2-30B-A3B": {
-        "label": "Hy-MT2-30B-A3B MoE (~24 GB+ VRAM)",
-        "vram": "~24 GB+ VRAM in BF16 (3B active per token)",
+        "label": "Hy-MT2-30B-A3B MoE (~60 GB weights)",
+        "vram": "~60 GB for BF16 weights alone, plus runtime memory",
         "defaults": DEFAULT_PARAMS_MOE,
     },
 }
@@ -177,8 +177,6 @@ def format_preferences(preferences):
 def unload_model():
     """Release the loaded model to free GPU memory before switching sizes."""
     global model, tokenizer, model_name
-    del model
-    del tokenizer
     model = None
     tokenizer = None
     model_name = None
@@ -448,7 +446,7 @@ def create_interface():
             [Hy-MT2-1.8B](https://huggingface.co/tencent/Hy-MT2-1.8B),
             [Hy-MT2-7B](https://huggingface.co/tencent/Hy-MT2-7B), and
             [Hy-MT2-30B-A3B](https://huggingface.co/tencent/Hy-MT2-30B-A3B).
-            Supports all seven Hy-MT2 translation task types across 33 languages.
+            Supports all seven Hy-MT2 translation task types with 38 language and variant choices.
             """
         )
 
@@ -458,7 +456,7 @@ def create_interface():
                     choices=list(MODELS.keys()),
                     value="tencent/Hy-MT2-1.8B",
                     label="Model",
-                    info="1.8B ~4 GB | 7B ~16 GB | 30B-A3B MoE ~24 GB+ VRAM. Switching models unloads the previous one.",
+                    info="1.8B ~4 GB | 7B ~16 GB | 30B-A3B ~60 GB weights plus runtime memory. Switching models unloads the previous one.",
                 )
 
                 source_language = gr.Dropdown(

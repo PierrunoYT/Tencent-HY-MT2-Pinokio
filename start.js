@@ -24,7 +24,7 @@ module.exports = {
     {
       method: "notify",
       params: {
-        html: "Hy-MT2 is running! Click 'Open Web UI' to start translating between 33 languages."
+        html: "Hy-MT2 is running! Click 'Open Web UI' to start translating."
       }
     }
   ]
