@@ -1,6 +1,9 @@
 import gradio as gr
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+import re
+from functools import wraps
+from threading import RLock
 
 # Language mapping
 LANGUAGES = {
@@ -93,6 +96,16 @@ MODELS = {
 model = None
 tokenizer = None
 model_name = None
+model_lock = RLock()
+
+
+def serialized_model_access(function):
+    """Keep model switching and inference mutually exclusive across callers."""
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        with model_lock:
+            return function(*args, **kwargs)
+    return wrapped
 
 
 def get_language_name(language_code, instruction_language="en"):
@@ -138,11 +151,15 @@ def format_terminology(terminology, use_zh):
         else:
             continue
 
+        if not source_term or not target_term:
+            raise ValueError("Terminology pairs must include both source and target terms.")
         if use_zh:
             lines.append(f"{source_term} 翻译成 {target_term}")
         else:
             lines.append(f"{source_term} translates to {target_term}")
 
+    if not lines:
+        raise ValueError("Enter terminology as source -> target, one pair per line.")
     return "\n".join(lines)
 
 
@@ -151,18 +168,15 @@ def format_preferences(preferences):
     items = [line.strip() for line in preferences.strip().splitlines() if line.strip()]
     formatted = []
     for index, item in enumerate(items, start=1):
-        if item.startswith(("1", "2", "3", "4", "5", "6", "7", "8", "9")) and "、" in item[:3]:
-            formatted.append(item)
-        else:
-            formatted.append(f"{index}、**{item}**")
+        item = re.sub(r"^\d+(?:、\s*|[.)]\s+)", "", item)
+        formatted.append(f"{index}、**{item}**")
     return formatted
 
 
+@serialized_model_access
 def unload_model():
     """Release the loaded model to free GPU memory before switching sizes."""
     global model, tokenizer, model_name
-    if model is None:
-        return
     del model
     del tokenizer
     model = None
@@ -173,9 +187,12 @@ def unload_model():
     print("Previous model unloaded.")
 
 
+@serialized_model_access
 def load_model(model_path="tencent/Hy-MT2-1.8B"):
     """Load the model and tokenizer."""
     global model, tokenizer, model_name
+    if model_path not in MODELS:
+        raise ValueError("Select a supported Hy-MT2 model.")
     if model is not None and model_name == model_path:
         return model, tokenizer
 
@@ -183,14 +200,16 @@ def load_model(model_path="tencent/Hy-MT2-1.8B"):
         unload_model()
 
     print(f"Loading model: {model_path}")
-    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-    model = AutoModelForCausalLM.from_pretrained(
+    new_tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    new_model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+        dtype=(torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16)
+        if torch.cuda.is_available() else torch.float32,
         device_map="auto",
         trust_remote_code=True,
     )
-    model.eval()
+    new_model.eval()
+    model, tokenizer = new_model, new_tokenizer
     model_name = model_path
     print("Model loaded successfully!")
     return model, tokenizer
@@ -247,10 +266,10 @@ Translate the following text into {target_name_en}. Note that you must ONLY outp
 
 【翻译任务】
 {task_lines}
-4、将【待翻译文本】翻译为{target_name_zh}。"""
+{len(pref_lines) + 1}、将【待翻译文本】翻译为{target_name_zh}。"""
         else:
             task_lines = "\n".join(
-                f"{index}. {line.lstrip('123456789、').strip('*')}"
+                f"{index}. {line.split('、', 1)[1][2:-2]}"
                 for index, line in enumerate(pref_lines, start=1)
             )
             prompt = f"""[Source Text]
@@ -258,7 +277,7 @@ Translate the following text into {target_name_en}. Note that you must ONLY outp
 
 [Translation Tasks]
 {task_lines}
-4. Translate the [Source Text] into {target_name_en}."""
+{len(pref_lines) + 1}. Translate the [Source Text] into {target_name_en}."""
 
     elif translation_mode == "delimiters":
         if use_zh:
@@ -275,7 +294,7 @@ You must retain the exact same number of delimiters in the translation. Strictly
     elif translation_mode == "structured_data":
         if use_zh:
             prompt = f"""# 任务目标
-将下方 {source_text} 中的 {format_type} 格式数据翻译为{target_name_zh}。
+将下方的 {format_type} 格式数据翻译为{target_name_zh}。
 
 # 严格约束
 1. 结构锁定：绝对保持原有的 {format_type} 数据结构、缩进和层级完全不变。
@@ -331,12 +350,12 @@ def build_generation_kwargs(temperature, top_p, top_k, repetition_penalty):
     """Build generate() kwargs; top_k <= 0 disables top-k filtering per 30B-A3B guidance."""
     kwargs = {
         "max_new_tokens": 4096,
+        "do_sample": True,
+        "top_k": max(0, int(top_k)),
         "temperature": temperature,
         "top_p": top_p,
         "repetition_penalty": repetition_penalty,
     }
-    if int(top_k) > 0:
-        kwargs["top_k"] = int(top_k)
     return kwargs
 
 
@@ -344,6 +363,7 @@ def get_model_defaults(model_choice):
     return MODELS.get(model_choice, {}).get("defaults", DEFAULT_PARAMS_DENSE)
 
 
+@serialized_model_access
 def translate_text(
     source_text,
     source_language,
@@ -559,6 +579,7 @@ def create_interface():
         def update_model_defaults(model):
             defaults = get_model_defaults(model)
             return (
+                gr.update(value=defaults["temperature"]),
                 gr.update(value=defaults["top_p"]),
                 gr.update(value=defaults["top_k"]),
                 gr.update(value=defaults["repetition_penalty"]),
@@ -579,7 +600,7 @@ def create_interface():
         model_choice.change(
             update_model_defaults,
             inputs=[model_choice],
-            outputs=[top_p, top_k, repetition_penalty],
+            outputs=[temperature, top_p, top_k, repetition_penalty],
         )
 
         translate_btn.click(
@@ -601,6 +622,8 @@ def create_interface():
                 repetition_penalty,
             ],
             outputs=[output_text, status_text],
+            api_name="translate",
+            concurrency_limit=1,
         )
 
         gr.Markdown(
@@ -625,7 +648,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Hy-MT2 Gradio Interface")
     parser.add_argument("--share", action="store_true", help="Create a public link")
     parser.add_argument("--server-name", type=str, default="127.0.0.1", help="Server name")
-    parser.add_argument("--server-port", type=int, default=7860, help="Server port")
+    parser.add_argument("--server-port", type=int, default=None, help="Server port (default: first available from 7860)")
     args = parser.parse_args()
 
     demo = create_interface()
