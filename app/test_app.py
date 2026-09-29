@@ -43,6 +43,16 @@ class TranslationTests(unittest.TestCase):
                 app.format_terminology(text, False)
         self.assertEqual(app.format_terminology('AI -> IA', False), 'AI translates to IA')
 
+    def test_mode_without_required_input_is_rejected_before_load(self):
+        with patch.object(app, 'load_model') as loader:
+            for mode in ('terminology', 'style', 'personalization', 'contextual'):
+                translation, status = app.translate_text(
+                    'hello', '英语 (English)', '中文 (Chinese)', next(iter(app.MODELS)),
+                    mode, '', ' ', '', '1.', 'JSON', 0.7, 0.6, 20, 1.05,
+                )
+                self.assertIn(mode, status)
+            loader.assert_not_called()
+
     def test_failed_load_does_not_publish_partial_state(self):
         with patch.object(app.AutoModelForCausalLM, 'from_pretrained', side_effect=RuntimeError('out of memory')):
             with self.assertRaises(RuntimeError):

@@ -358,6 +358,22 @@ def build_generation_kwargs(temperature, top_p, top_k, repetition_penalty):
     return kwargs
 
 
+def missing_mode_input(translation_mode, terminology, context, target_style, preferences):
+    """Return a message when the selected mode lacks the input its template needs."""
+    required = {
+        "terminology": (terminology, "Enter terminology as source -> target, one pair per line."),
+        "style": (target_style, "Enter a target style for style mode."),
+        "personalization": (preferences, "Enter at least one preference for personalization mode."),
+        "contextual": (context, "Enter background information for contextual mode."),
+    }
+    if translation_mode not in required:
+        return None
+    value, message = required[translation_mode]
+    if translation_mode == "personalization":
+        return None if format_preferences(value or "") else message
+    return None if (value or "").strip() else message
+
+
 def get_model_defaults(model_choice):
     return MODELS.get(model_choice, {}).get("defaults", DEFAULT_PARAMS_DENSE)
 
@@ -382,6 +398,10 @@ def translate_text(
     """Translate text using the Hy-MT2 model."""
     if not source_text.strip():
         return "Please enter text to translate.", "Ready. Enter text to translate."
+
+    missing = missing_mode_input(translation_mode, terminology, context, target_style, preferences)
+    if missing:
+        return missing, f"Missing input for {translation_mode} mode."
 
     try:
         model, tokenizer = load_model(model_choice)
