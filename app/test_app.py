@@ -37,7 +37,7 @@ class TranslationTests(unittest.TestCase):
             self.assertEqual(prompt.count('{"title":"Hello"}'), 1)
 
     def test_invalid_terminology_is_reported(self):
-        for text in ('invalid', 'source -> '):
+        for text in ('invalid', 'source -> ', 'AI -> IA\nML = AA'):
             with self.assertRaises(ValueError):
                 app.format_terminology(text, False)
         self.assertEqual(app.format_terminology('AI -> IA', False), 'AI translates to IA')

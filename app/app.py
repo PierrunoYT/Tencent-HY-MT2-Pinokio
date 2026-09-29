@@ -151,7 +151,7 @@ def format_terminology(terminology, use_zh):
             lines.append(line)
             continue
         else:
-            continue
+            raise ValueError(f"Cannot parse terminology line: {line!r}. Use source -> target.")
 
         if not source_term or not target_term:
             raise ValueError("Terminology pairs must include both source and target terms.")
