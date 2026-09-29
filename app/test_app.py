@@ -53,6 +53,16 @@ class TranslationTests(unittest.TestCase):
                 self.assertIn(mode, status)
             loader.assert_not_called()
 
+    def test_null_api_inputs_and_validation_errors(self):
+        args = [None, '英语 (English)', '中文 (Chinese)', next(iter(app.MODELS)),
+                'basic', None, None, None, None, 'JSON', 0.7, 0.6, 20, 1.05]
+        self.assertEqual(app.translate_text(*args)[0], 'Please enter text to translate.')
+        with patch.object(app, 'load_model', return_value=(MagicMock(), MagicMock())):
+            args[0], args[4], args[5] = 'hello', 'terminology', 'bad line'
+            translation, status = app.translate_text(*args)
+        self.assertNotIn('Traceback', translation)
+        self.assertTrue(status.startswith('Invalid input'))
+
     def test_failed_load_does_not_publish_partial_state(self):
         with patch.object(app.AutoModelForCausalLM, 'from_pretrained', side_effect=RuntimeError('out of memory')):
             with self.assertRaises(RuntimeError):

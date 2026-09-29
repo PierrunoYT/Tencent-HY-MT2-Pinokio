@@ -396,6 +396,10 @@ def translate_text(
     repetition_penalty,
 ):
     """Translate text using the Hy-MT2 model."""
+    # API clients may send null for optional text fields.
+    source_text, terminology, context, target_style, preferences = (
+        value or "" for value in (source_text, terminology, context, target_style, preferences)
+    )
     if not source_text.strip():
         return "Please enter text to translate.", "Ready. Enter text to translate."
 
@@ -448,6 +452,8 @@ def translate_text(
 
         return translation, f"Translation completed with {model_label}."
 
+    except ValueError as e:
+        return str(e), f"Invalid input: {e}"
     except Exception as e:
         import traceback
 
