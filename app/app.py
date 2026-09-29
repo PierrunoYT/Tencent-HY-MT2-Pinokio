@@ -168,11 +168,8 @@ def format_terminology(terminology, use_zh):
 def format_preferences(preferences):
     """Number user preference lines for personalization mode."""
     items = [line.strip() for line in preferences.strip().splitlines() if line.strip()]
-    formatted = []
-    for index, item in enumerate(items, start=1):
-        item = re.sub(r"^\d+(?:、\s*|[.)]\s+)", "", item)
-        formatted.append(f"{index}、**{item}**")
-    return formatted
+    items = [re.sub(r"^\d+(?:、|[.)](?:\s+|$))\s*", "", item) for item in items]
+    return [f"{index}、**{item}**" for index, item in enumerate(filter(None, items), start=1)]
 
 
 @serialized_model_access

@@ -30,6 +30,7 @@ class TranslationTests(unittest.TestCase):
                 self.assertIn(f'{count + 1}{suffix}', prompt)
         prompt = app.build_prompt('hello', 'en', 'fr', 'personalization', preferences='2026 terminology')
         self.assertIn('1. 2026 terminology', prompt)
+        self.assertEqual(app.format_preferences('1.\n2、\n3) Be brief'), ['1、**Be brief**'])
 
     def test_structured_data_occurs_once(self):
         for target in ('en', 'zh'):
