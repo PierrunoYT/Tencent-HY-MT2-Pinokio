@@ -71,7 +71,7 @@ On Linux/macOS, run `env/bin/python app.py`. Open the local URL printed in the t
 ### Terminology Mode
 
 1. Select **terminology** from Translation Mode
-2. Enter terminology guide, e.g. `AI -> 人工智能` (one pair per line)
+2. Enter terminology guide, e.g. `AI -> 人工智能` (one pair per line; lines in any other format are rejected)
 3. Enter your text and click **Translate**
 
 ### Style Mode
@@ -252,6 +252,7 @@ node --test tests/launchers.test.js
 These regression tests use mocked model dependencies; they do not download weights or validate GPU translation quality.
 
 With Gradio 5.50.0 installed, run `python tests/smoke_gradio.py` to check interface construction, the API schema, curl routes, and a blank request against real Gradio.
+
 ## Notes
 
 - First translation may take longer while the model downloads and loads
