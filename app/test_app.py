@@ -64,6 +64,14 @@ class TranslationTests(unittest.TestCase):
             self.assertEqual(app.load_model(app.model_name), (app.model, app.tokenizer))
             loader.assert_not_called()
 
+    def test_unload_collects_before_emptying_cache(self):
+        app.model = MagicMock()
+        calls = []
+        with patch.object(app.gc, 'collect', side_effect=lambda: calls.append('collect')),              patch.object(app.torch.cuda, 'is_available', return_value=True),              patch.object(app.torch.cuda, 'empty_cache', side_effect=lambda: calls.append('empty')):
+            app.unload_model()
+        self.assertIsNone(app.model)
+        self.assertEqual(calls, ['collect', 'empty'])
+
     def test_cuda_without_bf16_uses_float16(self):
         with patch.object(app.torch.cuda, 'is_available', return_value=True), \
              patch.object(app.torch.cuda, 'is_bf16_supported', return_value=False), \

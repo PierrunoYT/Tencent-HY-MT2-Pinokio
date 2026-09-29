@@ -1,3 +1,5 @@
+import gc
+
 import gradio as gr
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
@@ -180,6 +182,8 @@ def unload_model():
     model = None
     tokenizer = None
     model_name = None
+    # Accelerate hooks create reference cycles; collect them so VRAM is actually freed.
+    gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     print("Previous model unloaded.")
